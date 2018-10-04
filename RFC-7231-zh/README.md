@@ -101,7 +101,7 @@
 
 ### 1. 引言
 
-每一条超文本传输协议（HTTP）消息都是一条请求或是一条响应。服务器为一条请求监听一个连接，解析收到的每一条请求，解释关联到确定的（`identified`不知道怎么翻）请求资源的消息的语义，并且通过一条或者多条响应消息响应请求。客户端为特定的通信目的构造请求信息，测试收到的响应消息确定目标是否被响应携带，并决定如何解释结果。这个文档就[[RFC7230]](https://tools.ietf.org/html/rfc7230)定义的结构定义`HTTP/1.1`的语法。
+每一条超文本传输协议（HTTP）报文都是一条请求或是一条响应。服务器为一条请求监听一个连接，解析收到的每一条请求，解释关联到确定的（`identified`不知道怎么翻）请求资源的消息的语义，并且通过一条或者多条响应报文响应请求。客户端为特定的通信目的构造请求信息，测试收到的响应报文确定目标是否被响应携带，并决定如何解释结果。这个文档就[[RFC7230]](https://tools.ietf.org/html/rfc7230)定义的结构定义`HTTP/1.1`的语法。
 
 HTTP通过操作和表示法（`representations`）（[Section 3]()）的传输对资源的相互作用提供了一种统一的接口（[Section 2]()），不管它的类型、性质(`nature`)或是实现。
 
@@ -127,18 +127,62 @@ HTTP语法包括了由各种请求方式（[Section 4]()）定义的请求意图
 
 > 两节内容均引自@[Hexilee](https://github.com/Hexilee)所翻译的RFC-7230
 
-### 2. 资源 `Resources`
+### 2. 资源
 
-HTTP请求的目标被称为一个“资源”，HTTP不限制资源的性质，并且它很少定义可能会用来和资源交互的接口。任何一个资源都被一个统一资源标识符`Uniform Resource Identifier`（URI）标识，这在`[RFC7230]`的Section 2.7被提到过。
+HTTP请求的目标被称为一个“资源”(`resource`)，HTTP不限制资源的性质，并且它很少定义可能会用来和资源交互的接口。任何一个资源都被一个统一资源标识符`Uniform Resource Identifier`（URI）标识，这在`[RFC7230]`的Section 2.7被提到过。
 
-当一个客户端构造一条`HTTP/1.1`请求消息时，它通过其中一种在（`Section 5.3 of
+当一个客户端构造一条`HTTP/1.1`请求报文时，它通过其中一种在（`Section 5.3 of
 [RFC7230]`）中定义形式发送目标的`URI`。当请求被接收时，服务器重构一条关于目标的有效的请求`URI`（[Section 5.5 of [RFC7230]]()）。
 
-设计HTTP的一个目的是将资源标识从语法中分离出来，通过将请求语义授予请求方法（[Section 4]()）和一些请求改动（`request -modifying`不知道怎么翻译，是被请求修改还是可以修正请求的）的头字段（[Section 5]()）。如果出现了就像在[Section 4.2.1]()中提到的在方法语义和任何隐含在`URI`本身中的语义冲突时，方法语义占有优先权。
+设计HTTP的一个目的是将资源标识从语法中分离出来，通过将请求语义授予请求方法（[Section 4]()）和一些请求改动（`request -modifying`不知道怎么翻译，是被请求修改还是可以修正请求的）的头字段（[Section 5]()）。如果出现了就像在[Section 4.2.1]()中提到的在方法语义和任何隐含在`URI`本身中的语义冲突时，方法语义优先。
 
+### 3. `representation`元数据
 
+`representation`头字段提供了关于`representation`的元数据。当一条报文包含了一个`payload body`时，
 
+`representation`头字段描述如何解析负载体中的`representation data`。在`HEAD`请求的响应中，如果有相同的`GET`请求`representation`头字段描述了在`payload body`中出现过的`representation data`。
 
+以下头字段传达了`representation metadata`：
 
+```
++-------------------+-----------------+
+| Header Field Name | Defined in...   |
++-------------------+-----------------+
+| Content-Type      | Section 3.1.1.5 |
+| Content-Encoding  | Section 3.1.2.2 |
+| Content-Language  | Section 3.1.3.2 |
+| Content-Location  | Section 3.1.4.2 |
++-------------------+-----------------+
+```
 
+#### 3.3.1.  处理`representation data`
+
+##### 3.1.1.1. 媒体类型
+
+`HTTP`在`Content-Type`[（Section 3.1.1.5）]()和`Accept`[（Section 5.3.2）]()头字段中使用互联网媒体类型(`Internet media types`)[[RFC2046]]()来提供开放的可扩展的数据类型和类型协商。
+
+媒体类型同时定义了数据格式和多种处理模式：如何根据每一个收到的上下文处理那个数据。
+
+```
+media-type = type "/" subtype *( OWS ";" OWS parameter )
+type = token
+subtype = token
+```
+
+`type/subtype  `后面**MAY** 跟着`name=type`形式的参数。
+
+```
+parameter = token "=" ( token / quoted-string )
+```
+
+类型、子类型和参数名标签是大小写不敏感的。参数值有可能是大小写敏感的，这取决于参数名的语义。一个参数的存在或不存在可能对一种媒体类型的处理至关重要，这取决于它在媒体类型注册表（MIME?）中的定义。
+
+与`token production`匹配的参数值能以一个`tolen`或在一个引号中的字符串的形式被传递。被括起来的或是没有被括起来的值是等价的。举例来说，以下例子中是等价的，但是第一种在常量中用的更多：
+
+```
+text/html;charset=utf-8
+text/html;charset=UTF-8
+Text/HTML;Charset="utf-8"
+text/html; charset="utf-8"
+```
 
